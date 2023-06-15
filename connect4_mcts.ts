@@ -6,7 +6,6 @@ export type Player = {
 }
 
 export type Action = {
-    game: string;
     column: number;
 }
 
@@ -14,28 +13,31 @@ export type Turn = {
     number: number;
     player: number | null;
     action: Action | null;
-    next_player: number;
+}
+
+export type Status = {
+    state: "in_progress" | "over";
+    next_player?: number;
+    winner?: number | null;
 }
 
 export type State = {
-    game: string;
-    over: boolean;
-    winner: number | null;
-    next_player: number;
-    board: string[][];
+    board: (number | null)[];
 }
 
 export type Match = {
     id: number;
+    game: "connect4";
     players: Player[];
     turns: Turn[];
     turn: number;
+    status: Status,
     state: State;
 }
 
-export const exampleMatch: Match = { "id": 1, "players": [{ "kind": "user", "username": "steve" }, { "kind": "agent", "game": "connect4", "username": "steve", "agentname": "youragent" }], "turns": [{ "number": 0, "player": null, "action": null, "next_player": 0 }, { "number": 1, "player": 0, "action": { "game": "connect4", "column": 3 }, "next_player": 1 }, { "number": 2, "player": 1, "action": { "game": "connect4", "column": 2 }, "next_player": 0 }, { "number": 3, "player": 0, "action": { "game": "connect4", "column": 3 }, "next_player": 1 }], "turn": 3, "state": { "game": "connect4", "over": false, "winner": null, "next_player": 1, "board": [[" ", " ", " ", " ", " ", " "], [" ", " ", " ", " ", " ", " "], ["R", " ", " ", " ", " ", " "], ["B", "B", " ", " ", " ", " "], [" ", " ", " ", " ", " ", " "], [" ", " ", " ", " ", " ", " "], [" ", " ", " ", " ", " ", " "]] } }
+export const exampleMatch: Match = JSON.parse('{"id":123,"game":"connect4","players":[{"kind":"user","username":"user1"},{"kind":"agent","game":"connect4","username":"user2","agentname":"agent1"}],"turns":[{"number":0,"player":null,"action":null},{"number":1,"player":0,"action":{"column":0}}],"turn":0,"status":{"state":"in_progress","next_player":1},"state":{"board":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]}}')
 
-// Our representation of a game
+// Our compact representation of a game
 type Game = {
     player: number;
     board: Int8Array;
@@ -50,16 +52,18 @@ export function parse(match: Match): Game {
     let board = new Int8Array(42);
     for (let col = 0; col < 7; col++) {
         for (let row = 0; row < 6; row++) {
-            let piece = match.state.board[col][row];
-            if (piece == "R") {
+            let piece = match.state.board[col * 6 + row];
+            if (piece === 0) {
                 board[col * 6 + row] = 1;
-            } else if (piece == "B") {
+            } else if (piece === 1) {
                 board[col * 6 + row] = 2;
             }
         }
     }
     return {
-        player: match.state.next_player + 1,
+        // instead of 0 and 1, we use 1 and 2.
+        // This is because we use 0 for empty instead of null.
+        player: match.status.next_player! + 1,
         board: board,
     }
 }
@@ -192,8 +196,7 @@ export function mcts(game: Game): number {
             }
         }
 
-        const score = (wins * 1 + losses * -1) / (wins + losses + draws);
-        scores[action] = score;
+        scores[action] = (wins - losses) / (wins + losses + draws);
     }
 
     let best_score = -1;

@@ -9,7 +9,7 @@ export default {
         const match = await req.json();
         const game = parse(match as Match);
         const action = mcts(game);
-        const response = `{"game":"connect4","column":${action}}`;
+        const response = `{"column":${action}}`;
         console.log(response);
 
         return new Response(response);
